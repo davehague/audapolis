@@ -25,7 +25,8 @@ from .models import (
     ModelTypeNotSupported,
     models,
 )
-from .otio import Segment, convert_otio
+# Temporarily disabled due to build issues with OpenTimelineIO on Apple Silicon
+# from .otio import Segment, convert_otio
 from .tasks import TaskNotFoundError, tasks
 from .transcribe import TranscriptionState, TranscriptionTask, process_audio
 
@@ -126,15 +127,16 @@ async def get_downloaded_models(auth: str = Depends(token_auth)):
     return models.downloaded
 
 
-@app.post("/util/otio/convert")
-async def convert_otio_http(
-    name: str,
-    adapter: str,
-    timeline: List[Segment],
-    auth: str = Depends(token_auth),
-):
-    converted = convert_otio(timeline, name, adapter)
-    return PlainTextResponse(converted)
+# Temporarily disabled due to OpenTimelineIO build issues on Apple Silicon
+# @app.post("/util/otio/convert")
+# async def convert_otio_http(
+#     name: str,
+#     adapter: str,
+#     timeline: List[Segment],
+#     auth: str = Depends(token_auth),
+# ):
+#     converted = convert_otio(timeline, name, adapter)
+#     return PlainTextResponse(converted)
 
 
 @app.exception_handler(TaskNotFoundError)

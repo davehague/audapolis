@@ -6,7 +6,7 @@ import { showMenuBar } from '../../ipc/ipc_renderer';
 
 function getWindowControlsRect(): DOMRect {
   const windowControlsOverlay = window.navigator.windowControlsOverlay;
-  if (windowControlsOverlay.visible) {
+  if (windowControlsOverlay && windowControlsOverlay.visible && typeof windowControlsOverlay.getBoundingClientRect === 'function') {
     return windowControlsOverlay.getBoundingClientRect();
   } else {
     return new DOMRect(55, 0, window.innerWidth - 2 * 55, 55);
@@ -47,7 +47,7 @@ function WindowControlsButton({
 const TitleBarContainer = styled.div`
   height: 55px;
   flex-shrink: 0;
-  padding: 0 ${getWindowControlsRect().left}px;
+  padding: 0 55px; /* Fixed padding instead of dynamic */
   display: flex;
   flex-direction: row;
   justify-content: space-evenly;
@@ -77,7 +77,7 @@ export function TitleBar({ children }: { children?: React.ReactNode }): JSX.Elem
         icon={MenuIcon}
       />
       <WindowControlsButton
-        doRender={!window.navigator.windowControlsOverlay.visible}
+        doRender={!window.navigator.windowControlsOverlay?.visible}
         side={'right'}
         icon={CrossIcon}
         onClick={() => {

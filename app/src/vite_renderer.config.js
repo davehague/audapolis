@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import { escapeRegExp } from 'lodash';
-import reactRefresh from '@vitejs/plugin-react-refresh';
+import react from '@vitejs/plugin-react';
 import { builtinModules } from 'module';
 import pkg from '../package.json';
 import commonjsExternals from 'vite-plugin-commonjs-externals';
@@ -20,11 +20,11 @@ const commonjsPackages = [
 export default defineConfig({
   root: __dirname,
   base: '',
-  plugins: [reactRefresh(), commonjsExternals({ externals: commonjsPackages })],
+  plugins: [react(), commonjsExternals({ externals: commonjsPackages })],
   build: {
     outDir: '../build/renderer_process/',
     emptyOutDir: true,
     minify: false,
-    brotliSize: false,
+    // brotliSize removed in Vite 6
   },
 });
