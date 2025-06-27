@@ -1,6 +1,6 @@
 # <div align="center">🎤 audapolis</div>
 
-> **<div align="center">An editor for spoken-word media with transcription.</div>**
+> **<div align="center">Edit audio and video content by editing text, making spoken-word media editing as easy as using a word processor.</div>**
 
 ![screenshot of audapolis](doc/screenshot.png)
 
@@ -178,9 +178,3 @@ Please ensure:
 ## 📄 License
 
 This project is licensed under the AGPL-3.0 License.
-
-## 🙏 Acknowledgements
-
-- Funded from September 2021 until February 2022 by ![logos of the "Bundesministerium für Bildung und Forschung", Prototype Fund and Open Knowledge Foundation Deutschland](doc/pf_funding_logos.svg)
-- Built with [Vosk](https://alphacephei.com/vosk/) for speech recognition
-- Uses [Electron](https://www.electronjs.org/) for cross-platform desktop apps
