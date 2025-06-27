@@ -20,6 +20,11 @@ export function getSubtitleCodec(outputPath: string): string {
   throw Error('subtitles not supported for this file extension');
 }
 
+// Helper function to convert object to FilterNode arguments
+function objectToFilterArgs(obj: Record<string, string | number>): string[] {
+  return Object.entries(obj).map(([key, value]) => `${key}=${value}`);
+}
+
 function addSubtitles(
   cmd: Fessonia.FFmpegCommand,
   concatVideo: Fessonia.FilterChain,
@@ -28,7 +33,9 @@ function addSubtitles(
   subtitles: { path: string; type: 'burn_in' | 'seperate_track' }
 ) {
   if (subtitles?.type == 'burn_in') {
-    concatVideo.appendNodes(new FilterNode('subtitles', { filename: subtitles.path }));
+    concatVideo.appendNodes(
+      new FilterNode('subtitles', objectToFilterArgs({ filename: subtitles.path }))
+    );
   } else if (subtitles?.type == 'seperate_track') {
     const subtitleInput = new FFmpegInput(subtitles.path);
     cmd.addInput(subtitleInput);
@@ -47,16 +54,22 @@ async function combineVideoParts(
   const cmd = new FFmpegCommand({ y: undefined });
   const partSpecifiers = parts.map((p) => {
     const scale = new FilterChain([
-      new FilterNode('scale', {
-        width: `min(iw*${targetResolution.y}/ih\\,${targetResolution.x})`,
-        height: `min(${targetResolution.y}\\,ih*${targetResolution.x}/iw)`,
-      }),
-      new FilterNode('pad', {
-        width: targetResolution.x,
-        height: targetResolution.y,
-        x: `(${targetResolution.x}-iw)/2`,
-        y: `(${targetResolution.y}-ih)/2`,
-      }),
+      new FilterNode(
+        'scale',
+        objectToFilterArgs({
+          width: `min(iw*${targetResolution.y}/ih\\,${targetResolution.x})`,
+          height: `min(${targetResolution.y}\\,ih*${targetResolution.x}/iw)`,
+        })
+      ),
+      new FilterNode(
+        'pad',
+        objectToFilterArgs({
+          width: targetResolution.x,
+          height: targetResolution.y,
+          x: `(${targetResolution.x}-iw)/2`,
+          y: `(${targetResolution.y}-ih)/2`,
+        })
+      ),
     ]);
     cmd.addInput(p.v);
     if (p.v != p.a) {
@@ -68,10 +81,10 @@ async function combineVideoParts(
     return { v: scale.streamSpecifier(), a: p.a.streamSpecifier('a') };
   });
   const concatVideo = new FilterChain([
-    new FilterNode('concat', { n: parts.length.toString(), v: '1', a: '0' }),
+    new FilterNode('concat', objectToFilterArgs({ n: parts.length.toString(), v: '1', a: '0' })),
   ]);
   const concatAudio = new FilterChain([
-    new FilterNode('concat', { n: parts.length.toString(), v: '0', a: '1' }),
+    new FilterNode('concat', objectToFilterArgs({ n: parts.length.toString(), v: '0', a: '1' })),
   ]);
   for (const part of partSpecifiers) {
     concatVideo.addInput(part.v);
@@ -93,7 +106,7 @@ async function combineVideoParts(
 }
 
 function filterSource(filter: string, options: Record<string, string | number>) {
-  const filters = new FilterChain([new FilterNode(filter, options)]);
+  const filters = new FilterChain([new FilterNode(filter, objectToFilterArgs(options))]);
   return new FFmpegInput(filters, {
     f: 'lavfi',
   });
@@ -136,7 +149,7 @@ export async function exportVideo(
     if ('source' in part) {
       const source = sources[part.source];
       const source_path = path.join(tempdir, `part${i}-source`);
-      fs.writeFileSync(source_path, new Buffer(source.fileContents));
+      fs.writeFileSync(source_path, Buffer.from(source.fileContents));
       const input = new FFmpegInput(source_path, {
         ss: part.sourceStart.toString(),
         t: part.length.toString(),
@@ -157,7 +170,7 @@ export async function exportVideo(
   await combineVideoParts(files, diskSubtitles, targetResolution, outputPath, (p) =>
     progressCallback(p / total)
   );
-  fs.rmdirSync(tempdir, { recursive: true });
+  fs.rmSync(tempdir, { recursive: true, force: true });
 }
 
 export type ProgressCallback = (progress: number) => void;
@@ -185,7 +198,7 @@ async function combineAudioParts(
 ): Promise<unknown> {
   const cmd = new FFmpegCommand({ y: undefined });
   const concat = new FilterChain([
-    new FilterNode('concat', { n: parts.length.toString(), v: '0', a: '1' }),
+    new FilterNode('concat', objectToFilterArgs({ n: parts.length.toString(), v: '0', a: '1' })),
   ]);
   for (const part of parts) {
     cmd.addInput(part);
@@ -213,7 +226,7 @@ export async function exportAudio(
     if ('source' in part) {
       const source = sources[part.source];
       const source_path = path.join(tempdir, `part${i}-source`);
-      fs.writeFileSync(source_path, new Buffer(source.fileContents));
+      fs.writeFileSync(source_path, Buffer.from(source.fileContents));
       return new FFmpegInput(source_path, {
         ss: part.sourceStart.toString(),
         t: part.length.toString(),
@@ -226,7 +239,7 @@ export async function exportAudio(
   });
 
   await combineAudioParts(files, outputPath, (p) => progressCallback(p / total));
-  fs.rmdirSync(tempdir, { recursive: true });
+  fs.rmSync(tempdir, { recursive: true, force: true });
 }
 
 function getFileDuration(filePath: string): Promise<number> {
@@ -274,7 +287,7 @@ export async function convertToWav(
   console.log('ffmpeg result', await promise);
 
   const fileData = fs.readFileSync(outputFile);
-  fs.rmdirSync(tempdir, { recursive: true });
+  fs.rmSync(tempdir, { recursive: true, force: true });
   return fileData;
 }
 
@@ -288,7 +301,7 @@ export async function copyToMp4(input_path: string): Promise<Buffer> {
   await cmd.execute();
 
   const fileData = fs.readFileSync(outputFile);
-  fs.rmdirSync(tempdir, { recursive: true });
+  fs.rmSync(tempdir, { recursive: true, force: true });
   return fileData;
 }
 

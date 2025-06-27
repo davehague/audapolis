@@ -43,10 +43,7 @@ function log(file: number, source: LogSource, level: LogLevel, ...args: any[]) {
   // Filter out noisy development-only messages
   const message = args.join(' ');
   if (process.env.NODE_ENV === 'development') {
-    if (message.includes('Autofill.enable') || 
-        message.includes('Autofill.setAddresses') ||
-        message.includes('devtools://devtools/') ||
-        message.includes('Request Autofill')) {
+    if (message.includes('devtools://devtools/')) {
       return; // Skip logging these messages
     }
   }
@@ -129,7 +126,7 @@ export async function exportDebugLogsToDisk(file: string): Promise<void> {
     zip
       .generateNodeStream({ type: 'nodebuffer', streamFiles: true })
       .pipe(createWriteStream(savePath))
-      .on('finish', resolve)
+      .on('finish', () => resolve(null))
       .on('error', reject);
   });
 }

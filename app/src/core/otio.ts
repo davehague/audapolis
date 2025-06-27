@@ -19,7 +19,7 @@ export async function exportOtio(
   outputPath: string,
   server: ServerConfig
 ): Promise<void> {
-  fs.rmdirSync(outputPath, { recursive: true });
+  fs.rmSync(outputPath, { recursive: true, force: true });
   fs.mkdirSync(outputPath);
   fs.mkdirSync(path.join(outputPath, 'media'));
 
@@ -46,7 +46,7 @@ export async function exportOtio(
 
   for (const name of Object.keys(sources)) {
     const source_path = path.join(outputPath, 'media', name);
-    fs.writeFileSync(source_path, new Buffer(sources[name].fileContents));
+    fs.writeFileSync(source_path, Buffer.from(sources[name].fileContents));
   }
-  fs.writeFileSync(path.join(outputPath, `${name}.${extention}`), new Buffer(otioOutput));
+  fs.writeFileSync(path.join(outputPath, `${name}.${extention}`), Buffer.from(otioOutput));
 }
