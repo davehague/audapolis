@@ -73,103 +73,103 @@ This document tracks the step-by-step plan for creating comprehensive user docum
 
 ### Setup Documentation Structure
 - [x] Create documentation folder structure in `doc/user-guide/`
-- [ ] Set up assets folder for screenshots and examples
-- [ ] Create documentation index/navigation
+- [x] Set up assets folder for screenshots and examples
+- [x] Create documentation index/navigation
 
 ### Core Documentation Files
 
 #### Getting Started
-- [ ] Create `doc/user-guide/getting-started.md`
-  - [ ] Installation process for Windows, macOS, Linux
-  - [ ] First launch and initial setup
-  - [ ] Downloading your first transcription model
-  - [ ] Basic workflow overview with screenshots
+- [x] Create `doc/user-guide/getting-started.md`
+  - [x] Installation process for Windows, macOS, Linux
+  - [x] First launch and initial setup
+  - [x] Downloading your first transcription model
+  - [x] Basic workflow overview with screenshots
 
 #### Import & Transcription
-- [ ] Create `doc/user-guide/importing-transcribing.md`
-  - [ ] Supported file formats (audio/video)
-  - [ ] Import process step-by-step
-  - [ ] Transcription settings and options
-  - [ ] Speaker diarization setup
-  - [ ] Language selection and model management
-  - [ ] Troubleshooting import issues
+- [x] Create `doc/user-guide/importing-transcribing.md`
+  - [x] Supported file formats (audio/video)
+  - [x] Import process step-by-step
+  - [x] Transcription settings and options
+  - [x] Speaker diarization setup
+  - [x] Language selection and model management
+  - [x] Troubleshooting import issues
 
 #### Editor Basics  
-- [ ] Create `doc/user-guide/editor-basics.md`
-  - [ ] Editor interface overview
-  - [ ] Document structure (paragraphs, speakers, timing)
-  - [ ] Basic text editing operations
-  - [ ] Selection, cut, copy, paste
-  - [ ] Undo/redo functionality
-  - [ ] Saving and loading documents
+- [x] Create `doc/user-guide/editor-basics.md`
+  - [x] Editor interface overview
+  - [x] Document structure (paragraphs, speakers, timing)
+  - [x] Basic text editing operations
+  - [x] Selection, cut, copy, paste
+  - [x] Undo/redo functionality
+  - [x] Saving and loading documents
 
 #### Playback & Navigation
-- [ ] Create `doc/user-guide/playback-navigation.md`
-  - [ ] Audio/video player controls
-  - [ ] Seeking and navigation
-  - [ ] Cursor management (user vs player cursor)
-  - [ ] Synchronization between text and media
-  - [ ] Video display options
-  - [ ] Keyboard shortcuts for playback
+- [x] Create `doc/user-guide/playback-navigation.md`
+  - [x] Audio/video player controls
+  - [x] Seeking and navigation
+  - [x] Cursor management (user vs player cursor)
+  - [x] Synchronization between text and media
+  - [x] Video display options
+  - [x] Keyboard shortcuts for playback
 
 #### Advanced Editing
-- [ ] Create `doc/user-guide/advanced-editing.md`
-  - [ ] Speaker management and reassignment
-  - [ ] Confidence indicators and correction
-  - [ ] Document filtering and content management
-  - [ ] Transcript correction workflows
-  - [ ] Advanced selection and editing techniques
-  - [ ] Working with multiple speakers
+- [x] Create `doc/user-guide/advanced-editing.md`
+  - [x] Speaker management and reassignment
+  - [x] Confidence indicators and correction
+  - [x] Document filtering and content management
+  - [x] Transcript correction workflows
+  - [x] Advanced selection and editing techniques
+  - [x] Working with multiple speakers
 
 #### Export Options
-- [ ] Create `doc/user-guide/exporting.md`
-  - [ ] Export dialog overview
-  - [ ] Audio export formats and settings
-  - [ ] Video export (platform limitations)
-  - [ ] Subtitle/caption formats (WebVTT, SRT, etc.)
-  - [ ] Text export options
-  - [ ] OTIO export for professional video editing
-  - [ ] Batch export and automation
+- [x] Create `doc/user-guide/exporting.md`
+  - [x] Export dialog overview
+  - [x] Audio export formats and settings
+  - [x] Video export (platform limitations)
+  - [x] Subtitle/caption formats (WebVTT, SRT, etc.)
+  - [x] Text export options
+  - [x] OTIO export for professional video editing
+  - [x] Batch export and automation
 
 #### Model Management
-- [ ] Create `doc/user-guide/model-management.md`
-  - [ ] Understanding transcription models
-  - [ ] Downloading and installing models
-  - [ ] Language support overview
-  - [ ] Model performance and accuracy
-  - [ ] Managing disk space and model storage
-  - [ ] Updating models
+- [x] Create `doc/user-guide/model-management.md`
+  - [x] Understanding transcription models
+  - [x] Downloading and installing models
+  - [x] Language support overview
+  - [x] Model performance and accuracy
+  - [x] Managing disk space and model storage
+  - [x] Updating models
 
 #### Settings & Preferences
-- [ ] Create `doc/user-guide/settings-preferences.md`
-  - [ ] Application preferences
-  - [ ] Display options (speaker names, video, confidence)
-  - [ ] Language settings
-  - [ ] Performance settings
-  - [ ] Server configuration (if applicable)
+- [x] Create `doc/user-guide/settings-preferences.md`
+  - [x] Application preferences
+  - [x] Display options (speaker names, video, confidence)
+  - [x] Language settings
+  - [x] Performance settings
+  - [x] Server configuration (if applicable)
 
 #### Reference Materials
-- [ ] Create `doc/user-guide/keyboard-shortcuts.md`
-  - [ ] Complete keyboard shortcuts reference
-  - [ ] Shortcuts by category (editing, playback, navigation)
-  - [ ] Platform-specific variations
+- [x] Create `doc/user-guide/keyboard-shortcuts.md`
+  - [x] Complete keyboard shortcuts reference
+  - [x] Shortcuts by category (editing, playback, navigation)
+  - [x] Platform-specific variations
 
-- [ ] Create `doc/user-guide/file-formats.md`
-  - [ ] Supported input formats (what files you can import)
-  - [ ] Export format options (what you can save as)
-  - [ ] When to use different export formats
-  - [ ] File size and quality considerations for users
+- [x] Create `doc/user-guide/file-formats.md`
+  - [x] Supported input formats (what files you can import)
+  - [x] Export format options (what you can save as)
+  - [x] When to use different export formats
+  - [x] File size and quality considerations for users
 
-- [ ] Create `doc/user-guide/troubleshooting.md`
-  - [ ] Common issues and solutions
-  - [ ] Performance tips for large files
-  - [ ] What to do when imports fail
-  - [ ] Audio/video playback issues
-  - [ ] When and how to report bugs
+- [x] Create `doc/user-guide/troubleshooting.md`
+  - [x] Common issues and solutions
+  - [x] Performance tips for large files
+  - [x] What to do when imports fail
+  - [x] Audio/video playback issues
+  - [x] When and how to report bugs
 
 ### Documentation Polish & Review
-- [ ] Create main README for user guide (`doc/user-guide/README.md`)
-- [ ] Add navigation links between documents
+- [x] Create main README for user guide (`doc/user-guide/README.md`)
+- [x] Add navigation links between documents
 - [ ] Take comprehensive screenshots for all major features
 - [ ] Create example files and tutorials
 - [ ] Review documentation for completeness and accuracy
