@@ -5,7 +5,7 @@
 This implementation is broken down into three phases:
 
 1. **Phase 1: Core Whisper Integration** - Replace Vosk with OpenAI Whisper
-2. **Phase 2: Enhanced Diarization** - Replace PyDiar with Pyannote 3.1  
+2. **Phase 2: Enhanced Diarization** - Fully replace PyDiar with Pyannote 3.1
 3. **Phase 3: Performance Optimization** - Add GPU acceleration and advanced features
 
 Each phase is further broken down into small, iterative steps that build on each other.

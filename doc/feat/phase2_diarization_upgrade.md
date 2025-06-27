@@ -2,7 +2,7 @@
 
 ### Step 2.5: Create Diarization Bridge Layer
 
-**Context**: Create unified interface supporting both PyDiar and Pyannote with intelligent fallbacks.
+**Context**: Create a unified interface for Pyannote diarization.
 
 **Prompt 2.5**:
 ```
@@ -10,7 +10,7 @@ You are implementing Step 2.5 of Phase 2 for the Audapolis Whisper migration pro
 
 Current Context:
 - Step 2.4 created advanced PyannoteDiarizer with overlapping speech detection
-- Existing PyDiar system still needs to work for fallback scenarios
+- PyDiar system will be replaced by Pyannote
 - Need unified interface similar to TranscriptionEngine from Phase 1
 - Should handle authentication failures, model unavailability, etc.
 
@@ -19,14 +19,11 @@ Task: Create diarization bridge layer
 Requirements:
 1. Create server/app/diarization_bridge.py with DiarizationEngine class
 2. Implement unified diarize() method that:
-   - Detects available diarization engines (Pyannote vs PyDiar)
-   - Routes to appropriate engine based on configuration and availability
+   - Uses Pyannote as the diarization engine
    - Returns consistent output format
-   - Handles errors gracefully with fallbacks
-3. Add diarization engine preference system (auto, pyannote, pydiar)
-4. Implement smart fallback logic:
-   - If Pyannote fails (auth, model, memory), fallback to PyDiar
-   - If advanced features requested but unavailable, degrade gracefully
+   - Handles errors gracefully
+3. Implement smart fallback logic for Pyannote:
+   - If Pyannote model fails (auth, model, memory), degrade gracefully to a smaller Pyannote model
    - Handle HuggingFace authentication failures
 5. Maintain exact same interface as existing BinaryKeyDiarizationModel.diarize()
 
@@ -35,12 +32,11 @@ Files to create:
 
 Expected Output:
 - DiarizationEngine class with unified diarize() method
-- Smart routing between Pyannote and PyDiar engines
-- Comprehensive fallback system
+- Comprehensive fallback system for Pyannote models
 - Same input/output interface as existing diarization
-- Configuration options for engine preference
+- Configuration options for Pyannote model preference
 
-This bridge layer will allow seamless switching between diarization engines while providing advanced features when available.
+This will be the main integration point for the Pyannote diarization engine.
 ```
 
 ### Step 2.6: Optimize Whisper-Pyannote Integration
@@ -52,8 +48,8 @@ This bridge layer will allow seamless switching between diarization engines whil
 You are implementing Step 2.6 of Phase 2 for the Audapolis Whisper migration project.
 
 Current Context:
-- Phase 1 created robust TranscriptionEngine supporting Vosk and Whisper
-- Step 2.5 created DiarizationEngine supporting PyDiar and Pyannote
+- Phase 1 created robust TranscriptionEngine supporting Whisper
+- Step 2.5 created DiarizationEngine for Pyannote
 - Current pipeline in server/app/transcribe.py processes diarization then transcription separately
 - Need optimized pipeline that leverages both engines efficiently
 
@@ -263,7 +259,7 @@ Requirements:
 3. Add validation features:
    - Detect potential diarization errors (too many rapid speaker changes)
    - Flag low-confidence regions for user review
-   - Compare Pyannote vs PyDiar results when both available
+   - Compare Pyannote results against a baseline
    - Generate quality reports with recommendations
 4. Implement quality-based recommendations:
    - Suggest re-processing with different settings for poor quality results
@@ -316,14 +312,12 @@ Task: Integrate Phase 2 components into main transcription pipeline
 
 Requirements:
 1. Update server/app/transcribe.py to use new components:
-   - Replace direct PyDiar usage with DiarizationEngine
+   - Replace direct PyDiar usage with DiarizationEngine for all diarization
    - Integrate ModernTranscriptionPipeline for advanced workflows
    - Add quality metrics to results
    - Maintain backward compatibility with existing API
 2. Update process_audio() function to:
-   - Support new diarization engine selection
-   - Use ModernTranscriptionPipeline when advanced features requested
-   - Fall back to original pipeline when needed
+   - Use ModernTranscriptionPipeline for all diarization and transcription
    - Include quality assessment in results
 3. Ensure all existing functionality preserved:
    - Basic transcription still works
@@ -361,7 +355,6 @@ Task: Update configuration system for Phase 2 features
 
 Requirements:
 1. Extend server/app/config.py with Phase 2 configuration:
-   - DIARIZATION_ENGINE: "auto" | "pyannote" | "pydiar"
    - DIARIZATION_QUALITY: "fast" | "balanced" | "accurate"
    - ENABLE_OVERLAPPING_SPEECH: boolean
    - ENABLE_SPEAKER_EMBEDDINGS: boolean
@@ -370,8 +363,8 @@ Requirements:
    - MIN_SPEAKER_SEGMENT_DURATION: float
 2. Add validation for all new configuration options
 3. Update /config API endpoint to expose new settings
-4. Add configuration presets:
-   - "basic": PyDiar-level functionality for compatibility
+4. Add configuration presets for Pyannote:
+   - "basic": Pyannote with essential features
    - "enhanced": Pyannote with standard features
    - "advanced": Full Pyannote capabilities with post-processing
 5. Ensure configuration changes can be applied without restart
@@ -402,7 +395,7 @@ After completing all steps, the system should have:
 5. ✅ **Quality Metrics**: Comprehensive quality assessment and validation
 6. ✅ **Performance Optimization**: Memory and speed optimizations
 7. ✅ **Backward Compatibility**: All existing functionality preserved
-8. ✅ **Robust Fallbacks**: Graceful degradation when advanced features unavailable
+8. ✅ **Robust Fallbacks**: Graceful degradation for Pyannote models
 9. ✅ **Rich API**: Extended endpoints supporting advanced diarization features
 10. ✅ **Configuration Control**: Full user control over diarization settings
 
