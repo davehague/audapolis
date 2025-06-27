@@ -3,3 +3,5 @@
 app/server/
 
 .DS_Store
+
+.env
