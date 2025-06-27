@@ -2,17 +2,20 @@ import enum
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List, Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pyannote.audio import Pipeline
 
 import yaml
 
-from pyannote.audio import Pipeline
+# Lazy import to avoid Pyannote initialization during startup
+# from pyannote.audio import Pipeline
 from loguru import logger
 
 from .config import DATA_DIR
 from .tasks import Task, tasks
 from .whisper_engine import WhisperTranscriber
-from .whisper_downloader import WhisperModelDownloader
 from .huggingface_auth import hf_auth_manager
 
 
@@ -98,51 +101,74 @@ class Models:
             languages = ModelDefaultDict()
             models = {}
             for model in models_raw:
-                model_description = WhisperModelDescription(**model)
-                models[model_description.model_id] = model_description
                 if model["type"] == "transcription":
-                    languages[model["lang"]].transcription_models.append(model_description)
+                    model_description = WhisperModelDescription(**model)
+                    models[model_description.model_id] = model_description
+                    languages[model["lang"]].transcription_models.append(
+                        model_description
+                    )
                 elif model["type"] == "diarization":
                     # Pyannote models don't have a language, so we'll assign them to a special key
                     pyannote_model_description = PyannoteModelDescription(**model)
-                    models[pyannote_model_description.model_id] = pyannote_model_description
-                    languages["diarization"].diarization_models.append(pyannote_model_description)
+                    models[pyannote_model_description.model_id] = (
+                        pyannote_model_description
+                    )
+                    languages["diarization"].diarization_models.append(
+                        pyannote_model_description
+                    )
         self.available = dict(languages)
         self.model_descriptions = models
         self.loaded = {}
 
     @property
-    @property
-    def downloaded(self) -> Dict[str, Union[WhisperModelDescription, PyannoteModelDescription]]:
+    def downloaded(
+        self,
+    ) -> Dict[str, Union[WhisperModelDescription, PyannoteModelDescription]]:
         downloaded_models = {}
         for model_id, description in self.model_descriptions.items():
             if description.is_downloaded():
                 downloaded_models[model_id] = description
         return downloaded_models
 
-    def get_model_description(self, model_id) -> Union[WhisperModelDescription, PyannoteModelDescription]:
+    def get_model_description(
+        self, model_id
+    ) -> Union[WhisperModelDescription, PyannoteModelDescription]:
         if model_id not in self.model_descriptions:
             raise ModelDoesNotExist
         return self.model_descriptions[model_id]
 
-    def _load_model(self, model: Union[WhisperModelDescription, PyannoteModelDescription]):
+    def _load_model(
+        self, model: Union[WhisperModelDescription, PyannoteModelDescription]
+    ):
         if model.type == "transcription":
             return WhisperTranscriber(model.name)
         elif model.type == "diarization":
             if not hf_auth_manager.get_token():
-                logger.error("Hugging Face token not available for Pyannote diarization model.")
-                raise ModelNotDownloaded("Hugging Face token not available for Pyannote diarization model.")
+                logger.error(
+                    "Hugging Face token not available for Pyannote diarization model."
+                )
+                raise ModelNotDownloaded(
+                    "Hugging Face token not available for Pyannote diarization model."
+                )
             try:
+                # Lazy import to avoid startup issues
+                from pyannote.audio import Pipeline
                 pipeline = Pipeline(model.name, auth_token=hf_auth_manager.get_token())
-                logger.info(f"Successfully loaded Pyannote diarization model: {model.name}")
+                logger.info(
+                    f"Successfully loaded Pyannote diarization model: {model.name}"
+                )
                 return pipeline
             except Exception as e:
-                logger.error(f"Failed to load Pyannote diarization model {model.name}: {e}")
-                raise ModelNotDownloaded(f"Failed to load Pyannote diarization model: {e}")
+                logger.error(
+                    f"Failed to load Pyannote diarization model {model.name}: {e}"
+                )
+                raise ModelNotDownloaded(
+                    f"Failed to load Pyannote diarization model: {e}"
+                )
         else:
             raise ModelTypeNotSupported()
 
-    def get(self, model_id: str) -> Union[WhisperTranscriber, Pipeline]:
+    def get(self, model_id: str) -> Union[WhisperTranscriber, "Pipeline"]:
         model = self.get_model_description(model_id)
         if model_id not in self.loaded:
             self.loaded[model_id] = self._load_model(model)
@@ -152,23 +178,37 @@ class Models:
         model_description = self.get_model_description(model_id)
         task: DownloadModelTask = tasks.get(task_uuid)
         if model_description.type == "transcription":
-            downloader = WhisperModelDownloader(model_description.name, task_uuid)
-            downloader.download()
+            # Whisper models are downloaded on first use by the whisper library.
+            # Here, we just ensure the model can be loaded.
+            try:
+                WhisperTranscriber(model_description.name)
+                task.set_progress(100, "Model downloaded successfully.")
+            except Exception as e:
+                logger.error(
+                    f"Failed to load Whisper model {model_description.name}: {e}"
+                )
+                task.set_error(f"Failed to load Whisper model: {e}")
         elif model_description.type == "diarization":
             # Pyannote models are downloaded on first use by the pyannote.audio library.
             # Here, we just ensure the token is set and validate it.
             if not hf_auth_manager.get_token():
-                logger.warning("Hugging Face token not set. Pyannote model download/access may fail.")
+                logger.warning(
+                    "Hugging Face token not set. Pyannote model download/access may fail."
+                )
                 task.state = DownloadModelState.FAILED
                 return
             if not hf_auth_manager.validate_token_for_diarization():
                 logger.error("Hugging Face token invalid for diarization models.")
                 task.state = DownloadModelState.FAILED
                 return
-            logger.info(f"Pyannote model {model_id} is managed by Hugging Face Hub. Token validated.")
+            logger.info(
+                f"Pyannote model {model_id} is managed by Hugging Face Hub. Token validated."
+            )
             task.state = DownloadModelState.DONE
         else:
-            task.state = DownloadModelState.DONE  # Default to done for now if not Whisper
+            task.state = (
+                DownloadModelState.DONE
+            )  # Default to done for now if not Whisper
 
     def delete(self, model_id: str):
         model_description = self.get_model_description(model_id)
@@ -177,7 +217,9 @@ class Models:
             # For now, we do nothing.
             pass
         elif model_description.type == "diarization":
-            logger.info(f"Pyannote model {model_id} is managed by Hugging Face Hub. No explicit deletion needed.")
+            logger.info(
+                f"Pyannote model {model_id} is managed by Hugging Face Hub. No explicit deletion needed."
+            )
             pass
 
 

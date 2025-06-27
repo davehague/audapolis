@@ -4,24 +4,28 @@ import os
 from typing import Callable, Dict, List
 
 from pydub import AudioSegment
-from faster_whisper import WhisperModel
+from whisper import Whisper
 
-from .models import models
 
 logger = logging.getLogger(__name__)
 
 EPSILON = 0.00001
 
+
 class WhisperTranscriber:
     def __init__(self, model_name: str):
         self.model_name = model_name
-        self.model = models.get(model_name)
+        self.model = Whisper(
+            model_name, download_root=os.path.join(os.path.dirname(__file__), "models")
+        )
 
     def transcribe_audio(
         self, audio: AudioSegment, progress_callback: Callable[[float], None]
     ) -> Dict:
         # Save the audio to a temporary WAV file
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_audio_file:
+        with tempfile.NamedTemporaryFile(
+            suffix=".wav", delete=False
+        ) as temp_audio_file:
             audio_path = temp_audio_file.name
             audio.export(audio_path, format="wav")
 
@@ -37,15 +41,17 @@ class WhisperTranscriber:
 
             for segment in segments_generator:
                 if segment.words:
-                    all_words.extend([
-                        {
-                            "start": word.start,
-                            "end": word.end,
-                            "word": word.word,
-                            "conf": word.probability,
-                        }
-                        for word in segment.words
-                    ])
+                    all_words.extend(
+                        [
+                            {
+                                "start": word.start,
+                                "end": word.end,
+                                "word": word.word,
+                                "conf": word.probability,
+                            }
+                            for word in segment.words
+                        ]
+                    )
                 # Report progress based on the duration of the segment just processed
                 processed_chunk_duration = segment.end - last_reported_progress_time
                 if processed_chunk_duration > 0:

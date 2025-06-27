@@ -1,12 +1,12 @@
 import os
+import sys
 import numpy as np
 import torch
 import torchaudio
-from pyannote.audio import Pipeline
+from pyannote.audio import Pipeline, Model
 from pyannote.core import Segment as PyannoteSegment, Annotation
-from pyannote.audio.models.segmentation import OverlapDetection
-from pyannote.audio.features import PretrainedSpeakerEmbedding
-from pyannote.audio import Model
+from pyannote.audio.pipelines import OverlappedSpeechDetection, VoiceActivityDetection
+from pyannote.audio.pipelines.utils.hook import ProgressHook
 from pyannote.core import Segment
 from sklearn.cluster import KMeans
 from typing import List, NamedTuple, Optional, Dict
@@ -29,12 +29,13 @@ class AdvancedDiarizationResult:
 class PyannoteDiarizer:
     def __init__(self, auth_token: Optional[str] = None):
         self.pipeline = None
-        self.vad_model = None
-        self.overlap_model = None
-        self.embedding_model = None
+        self.segmentation_model = None
+        self.vad_pipeline = None
+        self.overlap_pipeline = None
         self.auth_token = auth_token or os.getenv("HF_TOKEN")
         if not self.auth_token:
-            print("Warning: HuggingFace authentication token not provided. Pyannote models may not load.")
+            sys.stderr.write("Warning: HuggingFace authentication token not provided. Pyannote models may not load.\n")
+            sys.stderr.flush()
         self._load_pipeline()
         self._load_additional_models()
 
@@ -46,22 +47,41 @@ class PyannoteDiarizer:
             )
             self.pipeline.to("cpu") # Default to CPU, GPU will be handled in Phase 3
         except Exception as e:
-            print(f"Error loading Pyannote pipeline: {e}. Please ensure you have a valid HuggingFace token and network access.")
+            sys.stderr.write(f"Error loading Pyannote pipeline: {e}. Please ensure you have a valid HuggingFace token and network access.\n")
+            sys.stderr.flush()
             self.pipeline = None
 
     def _load_additional_models(self):
         try:
-            self.vad_model = Model.from_pretrained("pyannote/segmentation", use_auth_token=self.auth_token)
-            self.overlap_model = OverlapDetection.from_pretrained("pyannote/overlap-detection", use_auth_token=self.auth_token)
-            self.embedding_model = PretrainedSpeakerEmbedding("pyannote/embedding", use_auth_token=self.auth_token)
-            self.vad_model.to("cpu")
-            self.overlap_model.to("cpu")
-            self.embedding_model.to("cpu")
+            # Load the segmentation model that will be used by the pipelines
+            self.segmentation_model = Model.from_pretrained(
+                "pyannote/segmentation-3.0", 
+                use_auth_token=self.auth_token
+            )
+            
+            # Create VAD pipeline
+            self.vad_pipeline = VoiceActivityDetection(segmentation=self.segmentation_model)
+            vad_params = {
+                "min_duration_on": 0.0,
+                "min_duration_off": 0.0
+            }
+            self.vad_pipeline.instantiate(vad_params)
+            
+            # Create overlapped speech detection pipeline
+            self.overlap_pipeline = OverlappedSpeechDetection(segmentation=self.segmentation_model)
+            overlap_params = {
+                "min_duration_on": 0.0,
+                "min_duration_off": 0.0
+            }
+            self.overlap_pipeline.instantiate(overlap_params)
+            
+            self.segmentation_model.to("cpu")
         except Exception as e:
-            print(f"Error loading additional Pyannote models: {e}")
-            self.vad_model = None
-            self.overlap_model = None
-            self.embedding_model = None
+            sys.stderr.write(f"Error loading additional Pyannote models: {e}\n")
+            sys.stderr.flush()
+            self.segmentation_model = None
+            self.vad_pipeline = None
+            self.overlap_pipeline = None
 
     def diarize(
         self,
@@ -81,7 +101,8 @@ class PyannoteDiarizer:
 
         # Resample to 16kHz if necessary
         if sample_rate != 16000:
-            print(f"Resampling audio from {sample_rate}Hz to 16kHz for Pyannote.")
+            sys.stderr.write(f"Resampling audio from {sample_rate}Hz to 16kHz for Pyannote.\n")
+            sys.stderr.flush()
             resampler = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=16000)
             audio_tensor = resampler(audio_tensor)
             sample_rate = 16000 # Update sample rate after resampling
@@ -129,7 +150,8 @@ class PyannoteDiarizer:
 
             return result
         except Exception as e:
-            print(f"Error during Pyannote diarization: {e}")
+            sys.stderr.write(f"Error during Pyannote diarization: {e}\n")
+            sys.stderr.flush()
             if progress_callback:
                 progress_callback(f"Diarization failed: {e}")
             raise
@@ -139,8 +161,9 @@ class PyannoteDiarizer:
         audio_data: np.ndarray,
         sample_rate: int
     ) -> List[Segment]:
-        if self.overlap_model is None:
-            print("Overlap detection model not loaded.")
+        if self.overlap_pipeline is None:
+            sys.stderr.write("Overlap detection pipeline not loaded.\n")
+            sys.stderr.flush()
             return []
 
         audio_tensor = torch.from_numpy(audio_data).float()
@@ -152,10 +175,13 @@ class PyannoteDiarizer:
             audio_tensor = resampler(audio_tensor)
 
         try:
-            overlap_detection = self.overlap_model({
+            # Create audio file dict for the pipeline
+            audio_input = {
                 'waveform': audio_tensor,
                 'sample_rate': 16000
-            })
+            }
+            
+            overlap_detection = self.overlap_pipeline(audio_input)
             
             overlapping_regions = []
             for segment in overlap_detection.get_timeline().support():
@@ -168,7 +194,8 @@ class PyannoteDiarizer:
                 )
             return overlapping_regions
         except Exception as e:
-            print(f"Error during overlapping speech detection: {e}")
+            sys.stderr.write(f"Error during overlapping speech detection: {e}\n")
+            sys.stderr.flush()
             return []
 
     def perform_voice_activity_detection(
@@ -176,8 +203,9 @@ class PyannoteDiarizer:
         audio_data: np.ndarray,
         sample_rate: int
     ) -> List[Segment]:
-        if self.vad_model is None:
-            print("VAD model not loaded.")
+        if self.vad_pipeline is None:
+            sys.stderr.write("VAD pipeline not loaded.\n")
+            sys.stderr.flush()
             return []
 
         audio_tensor = torch.from_numpy(audio_data).float()
@@ -189,10 +217,13 @@ class PyannoteDiarizer:
             audio_tensor = resampler(audio_tensor)
 
         try:
-            vad_result = self.vad_model({
+            # Create audio file dict for the pipeline
+            audio_input = {
                 'waveform': audio_tensor,
                 'sample_rate': 16000
-            })
+            }
+            
+            vad_result = self.vad_pipeline(audio_input)
 
             voice_activity_regions = []
             for segment in vad_result.get_timeline().support():
@@ -205,7 +236,8 @@ class PyannoteDiarizer:
                 )
             return voice_activity_regions
         except Exception as e:
-            print(f"Error during voice activity detection: {e}")
+            sys.stderr.write(f"Error during voice activity detection: {e}\n")
+            sys.stderr.flush()
             return []
 
     def extract_speaker_embeddings(
@@ -214,33 +246,11 @@ class PyannoteDiarizer:
         sample_rate: int,
         segments: List[Segment]
     ) -> Dict[str, np.ndarray]:
-        if self.embedding_model is None:
-            print("Speaker embedding model not loaded.")
-            return {}
-
-        audio_tensor = torch.from_numpy(audio_data).float()
-        if audio_tensor.ndim == 1:
-            audio_tensor = audio_tensor.unsqueeze(0)
-
-        if sample_rate != 16000:
-            resampler = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=16000)
-            audio_tensor = resampler(audio_tensor)
-
-        embeddings = {}
-        for segment in segments:
-            # Create a pyannote.core.Segment from our custom Segment
-            pyannote_segment = Segment(start=segment.start, duration=segment.length)
-            
-            # Extract embedding for the segment
-            embedding = self.embedding_model.crop(
-                {
-                    'waveform': audio_tensor,
-                    'sample_rate': 16000
-                },
-                pyannote_segment
-            )
-            embeddings[segment.speaker_id] = embedding.numpy()
-        return embeddings
+        # Speaker embedding extraction in pyannote.audio 3.x requires a different approach
+        # For now, return empty embeddings to allow the main diarization to work
+        sys.stderr.write("Speaker embedding extraction not implemented for pyannote.audio 3.x yet.\n")
+        sys.stderr.flush()
+        return {}
 
     def cluster_speaker_embeddings(
         self,
@@ -265,5 +275,6 @@ class PyannoteDiarizer:
                 clustered_speakers[speaker_id] = f"speaker_{labels[i]}"
             return clustered_speakers
         except Exception as e:
-            print(f"Error during speaker embedding clustering: {e}")
+            sys.stderr.write(f"Error during speaker embedding clustering: {e}\n")
+            sys.stderr.flush()
             return {speaker_id: speaker_id for speaker_id in speaker_ids} # Fallback to original IDs

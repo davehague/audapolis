@@ -1,7 +1,12 @@
 import base64
 import json
 import os
+import sys
+import traceback
 from typing import List, Optional
+from contextlib import redirect_stdout
+import io
+from loguru import logger
 
 from fastapi import (
     BackgroundTasks,
@@ -18,20 +23,22 @@ from fastapi.responses import PlainTextResponse
 from starlette.status import HTTP_401_UNAUTHORIZED
 
 from .models import (
-    DownloadModelTask,
     LanguageDoesNotExist,
     ModelDoesNotExist,
     ModelNotDownloaded,
     ModelTypeNotSupported,
     models,
+    DownloadModelTask,
 )
+
 # Temporarily disabled due to build issues with OpenTimelineIO on Apple Silicon
 # from .otio import Segment, convert_otio
 from .tasks import TaskNotFoundError, tasks
 from .transcribe import TranscriptionState, TranscriptionTask, process_audio
 from .modern_pipeline import ModernTranscriptionPipeline
-from .diarization_bridge import DiarizationEngine
-from .pyannote_engine import AdvancedDiarizationResult
+from .diarization_bridge import get_diarization_engine
+# Lazy import to avoid Pyannote initialization during startup
+# from .pyannote_engine import AdvancedDiarizationResult
 from .huggingface_auth import hf_auth_manager
 from .config import config
 
@@ -58,6 +65,9 @@ def token_auth(request: Request):
 
 @app.on_event("startup")
 def startup_event():
+    # Ensure stdout is clean for the JSON message
+    sys.stdout.flush()
+    sys.stderr.flush()
     print(json.dumps({"msg": "server_started", "token": AUTH_TOKEN}), flush=True)
 
 
@@ -67,9 +77,9 @@ async def start_transcription(
     transcription_model: str = Form(...),
     diarize_max_speakers: Optional[int] = Form(None),
     diarize: bool = Form(False),
-    diarization_engine: Optional[str] = Form("auto"), # New parameter
-    pipeline_mode: Optional[str] = Form("balanced"), # New parameter
-    advanced_features: Optional[List[str]] = Form(None), # New parameter
+    diarization_engine: Optional[str] = Form("auto"),  # New parameter
+    pipeline_mode: Optional[str] = Form("balanced"),  # New parameter
+    advanced_features: Optional[List[str]] = Form(None),  # New parameter
     file: UploadFile = File(...),
     fileName: str = Form(...),
     auth: str = Depends(token_auth),
@@ -91,22 +101,22 @@ async def start_transcription(
             # In a real application, you'd use pydub or similar to load and resample.
             import soundfile as sf
             import io
-            
+
             audio_data, sample_rate = sf.read(io.BytesIO(audio_bytes))
 
             pipeline = ModernTranscriptionPipeline()
-            
+
             # Define a progress callback that updates the task
             def pipeline_progress_callback(message: str):
-                task.state = message # Update task state with progress message
-                tasks.update(task) # Persist the update
+                task.state = message  # Update task state with progress message
+                tasks.update(task)  # Persist the update
 
             final_transcription = pipeline.transcribe(
                 audio_data=audio_data,
                 sample_rate=sample_rate,
                 pipeline_mode=pipeline_mode,
                 progress_callback=pipeline_progress_callback,
-                task_uuid=task.uuid
+                task_uuid=task.uuid,
             )
             task.content = {"segments": [s._asdict() for s in final_transcription]}
             task.state = TranscriptionState.DONE
@@ -168,7 +178,6 @@ async def get_downloaded_models(auth: str = Depends(token_auth)):
 async def get_config(auth: str = Depends(token_auth)):
     return config.get_config()
 
-
     return config.get_config()
 
 
@@ -191,26 +200,37 @@ async def analyze_diarization(
             audio_bytes = await file.read()
             import soundfile as sf
             import io
-            
+
             audio_data, sample_rate = sf.read(io.BytesIO(audio_bytes))
 
-            diarization_engine = DiarizationEngine()
-            
+            diarization_engine = get_diarization_engine()
+
             def diarization_progress_callback(message: str):
                 task.state = message
                 tasks.update(task)
 
-            advanced_result: AdvancedDiarizationResult = diarization_engine.pyannote_diarizer.diarize(
-                audio_data=audio_data,
-                sample_rate=sample_rate,
-                progress_callback=diarization_progress_callback
+            # Lazy import to avoid startup issues
+            from .pyannote_engine import AdvancedDiarizationResult
+            
+            advanced_result: AdvancedDiarizationResult = (
+                diarization_engine.pyannote_diarizer.diarize(
+                    audio_data=audio_data,
+                    sample_rate=sample_rate,
+                    progress_callback=diarization_progress_callback,
+                )
             )
 
             # Convert NamedTuples and numpy arrays for JSON serialization
             segments_json = [s._asdict() for s in advanced_result.segments]
-            overlapping_regions_json = [s._asdict() for s in advanced_result.overlapping_regions]
-            voice_activity_regions_json = [s._asdict() for s in advanced_result.voice_activity_regions]
-            speaker_embeddings_json = {k: v.tolist() for k, v in advanced_result.speaker_embeddings.items()}
+            overlapping_regions_json = [
+                s._asdict() for s in advanced_result.overlapping_regions
+            ]
+            voice_activity_regions_json = [
+                s._asdict() for s in advanced_result.voice_activity_regions
+            ]
+            speaker_embeddings_json = {
+                k: v.tolist() for k, v in advanced_result.speaker_embeddings.items()
+            }
 
             task.content = {
                 "segments": segments_json,
@@ -240,23 +260,29 @@ async def get_diarization_models(auth: str = Depends(token_auth)):
             is_downloaded = model_desc.is_downloaded()
             auth_status = "N/A"
             if model_desc.type == "diarization":
-                auth_status = "Authenticated" if hf_auth_manager.get_token() else "Not Authenticated"
+                auth_status = (
+                    "Authenticated"
+                    if hf_auth_manager.get_token()
+                    else "Not Authenticated"
+                )
 
-            diarization_models_info.append({
-                "model_id": model_desc.model_id,
-                "name": model_desc.name,
-                "description": model_desc.description,
-                "size": model_desc.size,
-                "type": model_desc.type,
-                "is_downloaded": is_downloaded,
-                "auth_status": auth_status,
-                "capabilities": [
-                    "speaker_diarization",
-                    "overlapping_speech_detection",
-                    "voice_activity_detection",
-                    "speaker_embedding_extraction"
-                ] # Hardcoded for now, can be dynamic based on model_desc
-            })
+            diarization_models_info.append(
+                {
+                    "model_id": model_desc.model_id,
+                    "name": model_desc.name,
+                    "description": model_desc.description,
+                    "size": model_desc.size,
+                    "type": model_desc.type,
+                    "is_downloaded": is_downloaded,
+                    "auth_status": auth_status,
+                    "capabilities": [
+                        "speaker_diarization",
+                        "overlapping_speech_detection",
+                        "voice_activity_detection",
+                        "speaker_embedding_extraction",
+                    ],  # Hardcoded for now, can be dynamic based on model_desc
+                }
+            )
     return diarization_models_info
 
 
@@ -264,7 +290,10 @@ async def get_diarization_models(auth: str = Depends(token_auth)):
 async def update_config(new_settings: dict, auth: str = Depends(token_auth)):
     try:
         config.update_config(new_settings)
-        return {"message": "Configuration updated successfully.", "new_config": config.get_config()}
+        return {
+            "message": "Configuration updated successfully.",
+            "new_config": config.get_config(),
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

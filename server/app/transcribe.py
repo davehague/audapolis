@@ -7,14 +7,14 @@ from typing import Optional
 
 import numpy as np
 from fastapi import UploadFile
-from pydiar.models import BinaryKeyDiarizationModel, Segment
-from pydiar.util.misc import optimize_segments
 from pydub import AudioSegment
 
 from .models import models
 from .tasks import Task, tasks
 from .whisper_engine import WhisperTranscriber
 from .transcription_bridge import TranscriptionEngine
+from .modern_pipeline import ModernTranscriptionPipeline
+from .diarization_bridge import get_diarization_engine
 
 SAMPLE_RATE = 16000
 
@@ -105,36 +105,34 @@ def transcribe(
 
     else:
         task.state = TranscriptionState.DIARIZING
-        try:
-            diarization_model = BinaryKeyDiarizationModel()
-            if diarize_max_speakers is not None:
-                diarization_model.CLUSTERING_SELECTION_MAX_SPEAKERS = (
-                    diarize_max_speakers
-                )
-            segments = diarization_model.diarize(
-                SAMPLE_RATE, np.array(audio.get_array_of_samples())
-            )
-            optimized_segments = optimize_segments(segments)
-        except:  # noqa: E722
-            traceback.print_exc()
-            optimized_segments = []
-        if optimized_segments:
-            optimized_segments[-1].length = (
-                audio.duration_seconds - optimized_segments[-1].start
-            )
-        else:
-            optimized_segments = [
-                Segment(start=0, length=audio.duration_seconds, speaker_id=1)
-            ]
-        with ThreadPoolExecutor() as executor:
-            task.state = TranscriptionState.TRANSCRIBING
-            return list(
-                executor.map(
-                    lambda segment: transcription_engine.transcribe(
-                        audio[segment.start * 1000 : (segment.start + segment.length) * 1000],
-                        task.set_transcription_progress,
-                    ),
-                    optimized_segments,
-                )
-            )
+        
+        # Use the modern pipeline for diarization and transcription
+        modern_pipeline = ModernTranscriptionPipeline()
+        
+        # Convert pydub AudioSegment to numpy array
+        audio_np = np.array(audio.get_array_of_samples(), dtype=np.float32)
+        # Normalize to [-1, 1] range
+        audio_np = audio_np / (2**15)
+        
+        # Use modern pipeline with diarization
+        transcription_segments = modern_pipeline.transcribe(
+            audio_data=audio_np,
+            sample_rate=SAMPLE_RATE,
+            pipeline_mode="balanced",
+            progress_callback=lambda msg: task.set_transcription_progress(0),  # Simple progress callback
+            task_uuid=task_uuid
+        )
+        
+        # Convert back to the expected format for backward compatibility
+        results = []
+        for segment in transcription_segments:
+            # Create a simple transcript result that matches the expected format
+            results.append({
+                "text": segment.text,
+                "start": segment.start,
+                "end": segment.end,
+                "speaker_id": segment.speaker_id or "speaker_0"
+            })
+        
+        return results
 

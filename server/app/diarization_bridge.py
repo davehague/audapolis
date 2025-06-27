@@ -69,5 +69,12 @@ class DiarizationEngine:
             # For now, since we only have one, we just return an empty list.
             return []
 
-# Initialize the DiarizationEngine
-diarization_engine = DiarizationEngine()
+# Lazy initialization - will be created when first accessed
+diarization_engine = None
+
+def get_diarization_engine():
+    """Get the diarization engine, initializing it if necessary."""
+    global diarization_engine
+    if diarization_engine is None:
+        diarization_engine = DiarizationEngine()
+    return diarization_engine

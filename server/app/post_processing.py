@@ -1,7 +1,8 @@
 import numpy as np
 from typing import List, Optional, Dict, NamedTuple
 from loguru import logger
-from .pyannote_engine import PyannoteDiarizer # To access clustering
+# Lazy import to avoid Pyannote initialization during startup
+# from .pyannote_engine import PyannoteDiarizer # To access clustering
 
 # Re-define TranscriptionSegment for clarity, though it's the same as in modern_pipeline.py
 class TranscriptionSegment(NamedTuple):
@@ -23,7 +24,15 @@ class TranscriptPostProcessor:
     ):
         self.min_segment_duration = min_segment_duration
         self.speaker_merge_threshold = speaker_merge_threshold
-        self.pyannote_diarizer = PyannoteDiarizer() # Re-use for clustering
+        self.pyannote_diarizer = None # Lazy initialization
+        
+    def _get_pyannote_diarizer(self):
+        """Lazy getter for pyannote diarizer."""
+        if self.pyannote_diarizer is None:
+            # Lazy import to avoid startup issues
+            from .pyannote_engine import PyannoteDiarizer
+            self.pyannote_diarizer = PyannoteDiarizer()
+        return self.pyannote_diarizer
 
     def process_transcript(
         self,
@@ -46,7 +55,8 @@ class TranscriptPostProcessor:
         # 1. Speaker Consistency: Cluster embeddings and re-assign speaker IDs
         if speaker_embeddings:
             logger.info("Clustering speaker embeddings for consistency.")
-            clustered_speaker_map = self.pyannote_diarizer.cluster_speaker_embeddings(
+            pyannote_diarizer = self._get_pyannote_diarizer()
+            clustered_speaker_map = pyannote_diarizer.cluster_speaker_embeddings(
                 speaker_embeddings
             )
             for i, segment in enumerate(processed_segments):

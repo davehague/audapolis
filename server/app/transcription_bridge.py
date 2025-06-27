@@ -1,9 +1,9 @@
 import logging
-from typing import Callable, Dict
+from typing import Callable, Dict, Optional
 
 from pydub import AudioSegment
 
-from .models import models
+from .models import models, ModelDoesNotExist, ModelTypeNotSupported
 from .whisper_engine import WhisperTranscriber
 from .hardware import get_recommended_whisper_model
 from .error_handling import (WhisperModelNotAvailable, InsufficientMemory, TranscriptionTimeout, ModelLoadError, FallbackManager)

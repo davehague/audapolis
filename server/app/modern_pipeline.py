@@ -2,12 +2,15 @@ import numpy as np
 from typing import List, Optional, NamedTuple
 from loguru import logger
 from concurrent.futures import ThreadPoolExecutor
+import hashlib
 
-from .diarization_bridge import DiarizationEngine, Segment as DiarizationSegment
+from .diarization_bridge import get_diarization_engine, Segment as DiarizationSegment
 from .transcription_bridge import TranscriptionEngine
 from .tasks import Task, tasks
 from .post_processing import TranscriptPostProcessor
-from .pyannote_engine import AdvancedDiarizationResult
+# Lazy import for AdvancedDiarizationResult to avoid startup issues
+# from .pyannote_engine import AdvancedDiarizationResult
+from .performance_optimizer import pipeline_optimizer
 
 # Define a Segment NamedTuple to match the existing transcription output interface
 class TranscriptionSegment(NamedTuple):
@@ -22,9 +25,16 @@ class ModernTranscriptionPipeline:
     """
 
     def __init__(self):
-        self.diarization_engine = DiarizationEngine()
+        # Use lazy initialization to avoid Pyannote loading during startup
+        self.diarization_engine = None
         self.transcription_engine = TranscriptionEngine()
         self.post_processor = TranscriptPostProcessor()
+        
+    def _get_diarization_engine(self):
+        """Lazy getter for diarization engine."""
+        if self.diarization_engine is None:
+            self.diarization_engine = get_diarization_engine()
+        return self.diarization_engine
 
     def transcribe(
         self,
@@ -47,7 +57,12 @@ class ModernTranscriptionPipeline:
         if progress_callback:
             progress_callback("Performing Diarization and Speaker Embedding Extraction...")
         logger.info("Performing Diarization and Speaker Embedding Extraction...")
-        advanced_diarization_result: AdvancedDiarizationResult = self.diarization_engine.pyannote_diarizer.diarize(
+        
+        # Lazy import to avoid startup issues
+        from .pyannote_engine import AdvancedDiarizationResult
+        
+        diarization_engine = self._get_diarization_engine()
+        advanced_diarization_result: AdvancedDiarizationResult = diarization_engine.pyannote_diarizer.diarize(
             audio_data=audio_data,
             sample_rate=sample_rate,
             progress_callback=progress_callback
@@ -118,5 +133,12 @@ class ModernTranscriptionPipeline:
         logger.info("Modern transcription pipeline complete.")
         return final_transcription
 
-# Initialize the pipeline
-modern_pipeline = ModernTranscriptionPipeline()
+# Lazy initialization - will be created when first accessed
+modern_pipeline = None
+
+def get_modern_pipeline():
+    """Get the modern pipeline, initializing it if necessary."""
+    global modern_pipeline
+    if modern_pipeline is None:
+        modern_pipeline = ModernTranscriptionPipeline()
+    return modern_pipeline
