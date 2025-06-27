@@ -33,3 +33,7 @@
   quality: "Highest"
   type: "transcription"
   lang: "multilingual"
+- name: pyannote/speaker-diarization
+  description: "Pyannote speaker diarization model."
+  size: "20 MB"
+  type: "diarization"

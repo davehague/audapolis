@@ -1,9 +1,9 @@
-import os
 import shutil
 import psutil
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from .config import config
+
 
 class HardwareDetector:
     def get_ram_info(self) -> Dict:
@@ -44,7 +44,7 @@ class ModelSelector:
         self.hardware_info = hardware_info
         self.ram_gb = hardware_info["ram"]["available_gb"]
         if config.max_model_memory_mb > 0:
-            self.ram_gb = min(self.ram_gb, config.max_model_memory_mb / 1024) # Convert MB to GB
+            self.ram_gb = min(self.ram_gb, config.max_model_memory_mb / 1024)  # Convert MB to GB
         self.logical_cores = hardware_info["cpu"]["logical_cores"]
         self.gpu_present = hardware_info["gpu"]["present"]
 
@@ -80,7 +80,8 @@ class ModelSelector:
                         self.logical_cores >= reqs["min_cores"]):
                     return model_name
         
-        return None # No suitable model found
+        return None  # No suitable model found
+
 
 def get_recommended_whisper_model(user_preference: str = "accuracy") -> Dict:
     detector = HardwareDetector()

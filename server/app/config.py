@@ -30,14 +30,29 @@ ENABLE_MODEL_FALLBACKS: bool = os.environ.get(
 ).lower() == "true"
 
 MAX_MODEL_MEMORY_MB: int = int(os.environ.get(
-    "AUDAPOLIS_MAX_MODEL_MEMORY_MB", "0" # 0 means no limit, use hardware detection
+    "AUDAPOLIS_MAX_MODEL_MEMORY_MB", "0"  # 0 means no limit, use hardware detection
 ))
 
 if MAX_MODEL_MEMORY_MB < 0:
     raise ValueError("MAX_MODEL_MEMORY_MB cannot be negative.")
 
+
+PYANN_MODEL_PREFERENCE: Literal["default"] = os.environ.get(
+    "AUDAPOLIS_PYANN_MODEL_PREFERENCE", "default"
+).lower()
+
+if PYANN_MODEL_PREFERENCE not in ["default"]:
+    raise ValueError(
+        f"Invalid PYANN_MODEL_PREFERENCE: {PYANN_MODEL_PREFERENCE}. "
+        "Must be 'default'."
+    )
+
+HF_TOKEN: str | None = os.environ.get("AUDAPOLIS_HF_TOKEN")
+
+
 class AppConfig:
     """A singleton-like class to hold and provide access to application configuration."""
+
     _instance = None
 
     def __new__(cls):
@@ -52,6 +67,7 @@ class AppConfig:
         self.whisper_model_preference = WHISPER_MODEL_PREFERENCE
         self.enable_model_fallbacks = ENABLE_MODEL_FALLBACKS
         self.max_model_memory_mb = MAX_MODEL_MEMORY_MB
+        self.pyann_model_preference = PYANN_MODEL_PREFERENCE
 
     def get_config(self):
         return {
@@ -60,6 +76,7 @@ class AppConfig:
             "whisper_model_preference": self.whisper_model_preference,
             "enable_model_fallbacks": self.enable_model_fallbacks,
             "max_model_memory_mb": self.max_model_memory_mb,
+            "pyann_model_preference": self.pyann_model_preference,
         }
 
     def update_config(self, new_settings: dict):
@@ -70,7 +87,7 @@ class AppConfig:
             if pref not in ["speed", "balanced", "accuracy"]:
                 raise ValueError("Invalid whisper_model_preference.")
             self.whisper_model_preference = pref
-        
+
         if "enable_model_fallbacks" in new_settings:
             self.enable_model_fallbacks = bool(new_settings["enable_model_fallbacks"])
 
@@ -79,5 +96,14 @@ class AppConfig:
             if mem < 0:
                 raise ValueError("MAX_MODEL_MEMORY_MB cannot be negative.")
             self.max_model_memory_mb = mem
+
+        if "pyann_model_preference" in new_settings:
+            pref = new_settings["pyann_model_preference"].lower()
+            if pref not in ["default"]:
+                raise ValueError("Invalid pyann_model_preference.")
+            self.pyann_model_preference = pref
+
+
+
 
 config = AppConfig()

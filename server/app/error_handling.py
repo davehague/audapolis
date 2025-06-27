@@ -1,10 +1,11 @@
 import logging
 import time
-from typing import Callable, Dict, List, Optional
+from typing import Callable, List, Optional
 
-from .models import models, ModelDoesNotExist, ModelTypeNotSupported
+from .models import models
 
 logger = logging.getLogger(__name__)
+
 
 class WhisperModelNotAvailable(Exception):
     """Raised when a specific Whisper model is not available or cannot be loaded."""
