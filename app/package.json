@@ -23,6 +23,7 @@
     "test:fast": "jest --testPathIgnorePatterns='.*\\.pup\\.spec.ts'",
     "test:puppeteer": "if which xvfb-run >/dev/null 2>&1; then xvfb-run -a jest '.*\\.pup\\.spec.ts'; else jest '.*\\.pup\\.spec.ts'; fi",
     "start": "node scripts/dev.js",
+    "start:quiet": "LOG_LEVEL=warn node scripts/dev.js",
     "check": "npm-run-all --continue-on-error check:*",
     "check:tsc": "tsc --noEmit --incremental",
     "check:eslint": "eslint --ext .ts,.tsx . --cache",

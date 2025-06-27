@@ -25,7 +25,32 @@ export enum LogSource {
 export let logFilePath: string | null = null;
 let oldLog: ((...args: any[]) => void) | null = null;
 
+// Log level filtering
+const LOG_LEVEL = process.env.LOG_LEVEL || 'info'; // 'debug', 'info', 'warn', 'error'
+const LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
+
+function shouldLog(level: LogLevel): boolean {
+  const currentLevel = LOG_LEVELS[LOG_LEVEL as keyof typeof LOG_LEVELS] ?? 1;
+  const messageLevel = level === LogLevel.Debug || level === LogLevel.Trace ? 0 :
+                      level === LogLevel.Info || level === LogLevel.Log ? 1 :
+                      level === LogLevel.Warn ? 2 : 3;
+  return messageLevel >= currentLevel;
+}
+
 function log(file: number, source: LogSource, level: LogLevel, ...args: any[]) {
+  if (!shouldLog(level)) return;
+  
+  // Filter out noisy development-only messages
+  const message = args.join(' ');
+  if (process.env.NODE_ENV === 'development') {
+    if (message.includes('Autofill.enable') || 
+        message.includes('Autofill.setAddresses') ||
+        message.includes('devtools://devtools/') ||
+        message.includes('Request Autofill')) {
+      return; // Skip logging these messages
+    }
+  }
+  
   const date = new Date().toISOString();
   const level_str = LogLevel[level];
   const source_str = LogSource[source];
