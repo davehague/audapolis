@@ -4,7 +4,7 @@
 
 This implementation is broken down into three phases:
 
-1. **Phase 1: Core Whisper Integration** - Replace Vosk with Faster-Whisper
+1. **Phase 1: Core Whisper Integration** - Replace Vosk with OpenAI Whisper
 2. **Phase 2: Enhanced Diarization** - Replace PyDiar with Pyannote 3.1  
 3. **Phase 3: Performance Optimization** - Add GPU acceleration and advanced features
 
@@ -46,7 +46,7 @@ Each step is designed to be:
 
 ## Success Metrics
 
-- **Phase 1**: Whisper transcription working with same API
+- **Phase 1**: Vosk fully replaced by Whisper transcription with same API
 - **Phase 2**: Speaker diarization significantly improved
 - **Phase 3**: GPU acceleration and real-time capabilities
 
