@@ -16,53 +16,33 @@ This phase replaces Vosk with OpenAI Whisper while maintaining the existing API 
 ## Step Breakdown
 
 ### Step 1.1: Add OpenAI Whisper Dependencies
-*Complexity: Low | Duration: 30 minutes*
-
 Update dependencies and ensure OpenAI Whisper can be imported.
 
 ### Step 1.2: Create Whisper Model Configuration
-*Complexity: Low | Duration: 45 minutes*
-
 Define the new model structure for Whisper models, maintaining compatibility with existing model system.
 
 ### Step 1.3: Implement Basic Whisper Transcription Engine
-*Complexity: Medium | Duration: 90 minutes*
-
 Create a new transcription engine that uses OpenAI Whisper but maintains the same interface as the Vosk engine.
 
 ### Step 1.4: Update Model Management System
-*Complexity: Medium | Duration: 75 minutes*
-
 Extend the existing model management to handle Whisper models, replacing Vosk model management.
 
 ### Step 1.5: Add Hardware Detection & Auto-Selection
-*Complexity: Medium | Duration: 60 minutes*
-
 Implement automatic hardware detection (CPU/GPU) and model selection based on available resources.
 
 ### Step 1.6: Create Whisper-Vosk Bridge Layer
-*Complexity: Medium | Duration: 90 minutes*
-
 Create a unified interface for the Whisper transcription engine.
 
 ### Step 1.7: Update Transcription Pipeline Integration
-*Complexity: High | Duration: 120 minutes*
-
 Integrate the new engine into the existing transcription pipeline, maintaining all existing functionality.
 
 ### Step 1.8: Add Whisper Model Download System
-*Complexity: Medium | Duration: 75 minutes*
-
 Extend the model download system to handle Whisper models, replacing existing Vosk model downloads.
 
 ### Step 1.9: Implement Error Handling & Fallbacks
-*Complexity: Medium | Duration: 60 minutes*
-
 Add comprehensive error handling for Whisper transcription.
 
 ### Step 1.10: Update Configuration & Settings
-*Complexity: Low | Duration: 45 minutes*
-
 Add configuration options for engine selection and model preferences.
 
 ---

@@ -1,5 +1,4 @@
 import enum
-import json
 import traceback
 import warnings
 from concurrent.futures import ThreadPoolExecutor
@@ -11,15 +10,13 @@ from fastapi import UploadFile
 from pydiar.models import BinaryKeyDiarizationModel, Segment
 from pydiar.util.misc import optimize_segments
 from pydub import AudioSegment
-from vosk import KaldiRecognizer, Model
 
 from .models import models
 from .tasks import Task, tasks
+from .whisper_engine import WhisperTranscriber
+from .transcription_bridge import TranscriptionEngine
 
 SAMPLE_RATE = 16000
-# Number of seconds that should be fed into vosk.
-# Smaller = better progress estimates, but also slightly higher python overhead
-VOSK_BLOCK_SIZE = 2
 
 
 class TranscriptionState(str, enum.Enum):
@@ -43,30 +40,6 @@ class TranscriptionTask(Task):
     def set_transcription_progress(self, processed):
         self.processed += processed
         self.progress = self.processed / self.total
-
-
-def transcribe_raw_data(model: Model, name, audio, offset, duration, process_callback):
-    rec = KaldiRecognizer(model, SAMPLE_RATE)
-    rec.SetWords(True)
-
-    finished = False
-    processed = offset
-    while not finished:
-        block_start = processed
-        block_end = processed + VOSK_BLOCK_SIZE
-        if block_end > offset + duration:
-            block_end = offset + duration
-            finished = True
-        data = audio[block_start * 1000 : block_end * 1000]
-        rec.AcceptWaveform(data.get_array_of_samples().tobytes())
-        processed = block_end
-        process_callback(processed - block_start)
-
-    vosk_result = json.loads(rec.FinalResult())
-    return transform_vosk_result(name, vosk_result, duration, offset)
-
-
-EPSILON = 0.00001
 
 
 def process_audio(
@@ -104,8 +77,10 @@ def transcribe(
 ):
     task.state = TranscriptionState.LOADING_TRANSCRIPTION_MODEL
 
-    # TODO: Set error state if model does not exist
-    model = models.get(transcription_model)
+    # Initialize the TranscriptionEngine. If transcription_model is provided, it will try to use it,
+    # otherwise, it will use the recommended model based on hardware and user preference.
+    # For now, we assume 'accuracy' as default user preference for model selection if not specified.
+    transcription_engine = TranscriptionEngine(model_id=transcription_model, user_preference="accuracy")
 
     with warnings.catch_warnings():
         # we ignore the warning that ffmpeg is not found as we
@@ -122,12 +97,8 @@ def transcribe(
     if not diarize:
         task.state = TranscriptionState.TRANSCRIBING
         return [
-            transcribe_raw_data(
-                model,
-                fileName,
+            transcription_engine.transcribe(
                 audio,
-                0,
-                audio.duration_seconds,
                 task.set_transcription_progress,
             )
         ]
@@ -159,60 +130,11 @@ def transcribe(
             task.state = TranscriptionState.TRANSCRIBING
             return list(
                 executor.map(
-                    lambda segment: transcribe_raw_data(
-                        model,
-                        f"Speaker {int(segment.speaker_id)} ({fileName})",
-                        audio,
-                        segment.start,
-                        segment.length,
+                    lambda segment: transcription_engine.transcribe(
+                        audio[segment.start * 1000 : (segment.start + segment.length) * 1000],
                         task.set_transcription_progress,
                     ),
                     optimized_segments,
                 )
             )
 
-
-def transform_vosk_result(
-    name: str, result: dict, length: float, offset: float = 0
-) -> dict:
-    content = []
-    current_time = 0
-
-    for word in result.get("result", []):
-        word_start = word["start"]
-
-        if word["start"] > current_time:
-            if (word["start"] - current_time) > 10 * EPSILON:
-                content.append(
-                    {
-                        "sourceStart": current_time + offset,
-                        "length": word["start"] - current_time,
-                        "type": "silence",
-                    }
-                )
-            else:
-                word_start = current_time
-
-        content.append(
-            {
-                "sourceStart": word_start + offset,
-                "length": word["end"] - word["start"],
-                "type": "word",
-                "word": word["word"],
-                "conf": word["conf"],
-            }
-        )
-        current_time = word["end"]
-    if current_time < length:
-        if (length - current_time) < 10 * EPSILON and content:
-            content[-1]["length"] += length - current_time
-        else:
-            content.append(
-                {
-                    "sourceStart": current_time + offset,
-                    "length": length - current_time,
-                    "type": "silence",
-                }
-            )
-
-    return {"speaker": name, "content": content}

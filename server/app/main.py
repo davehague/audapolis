@@ -29,6 +29,7 @@ from .models import (
 # from .otio import Segment, convert_otio
 from .tasks import TaskNotFoundError, tasks
 from .transcribe import TranscriptionState, TranscriptionTask, process_audio
+from .config import config
 
 app = FastAPI()
 origins = ["*"]
@@ -125,6 +126,20 @@ async def delete_model(model_id: str, auth: str = Depends(token_auth)):
 @app.get("/models/downloaded")
 async def get_downloaded_models(auth: str = Depends(token_auth)):
     return models.downloaded
+
+
+@app.get("/config/")
+async def get_config(auth: str = Depends(token_auth)):
+    return config.get_config()
+
+
+@app.post("/config/")
+async def update_config(new_settings: dict, auth: str = Depends(token_auth)):
+    try:
+        config.update_config(new_settings)
+        return {"message": "Configuration updated successfully.", "new_config": config.get_config()}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # Temporarily disabled due to OpenTimelineIO build issues on Apple Silicon
