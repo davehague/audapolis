@@ -96,8 +96,20 @@ class PyannoteDiarizer:
 
         # Convert numpy array to torch tensor
         audio_tensor = torch.from_numpy(audio_data).float()
+        sys.stderr.write(f"DEBUG: Initial tensor shape: {audio_tensor.shape}\n")
+        sys.stderr.flush()
+        
+        # Handle both mono and stereo: convert from (time,) or (time, channels) to (channels, time)
         if audio_tensor.ndim == 1:
-            audio_tensor = audio_tensor.unsqueeze(0) # Add channel dimension if mono
+            # Mono: (time,) -> (1, time)
+            audio_tensor = audio_tensor.unsqueeze(0)
+            sys.stderr.write(f"DEBUG: After unsqueeze (mono): {audio_tensor.shape}\n")
+            sys.stderr.flush()
+        elif audio_tensor.ndim == 2:
+            # Stereo: (time, channels) -> (channels, time)
+            audio_tensor = audio_tensor.transpose(0, 1)
+            sys.stderr.write(f"DEBUG: After transpose (stereo): {audio_tensor.shape}\n")
+            sys.stderr.flush()
 
         # Resample to 16kHz if necessary
         if sample_rate != 16000:
@@ -106,6 +118,12 @@ class PyannoteDiarizer:
             resampler = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=16000)
             audio_tensor = resampler(audio_tensor)
             sample_rate = 16000 # Update sample rate after resampling
+            sys.stderr.write(f"DEBUG: After resampling: {audio_tensor.shape}\n")
+            sys.stderr.flush()
+
+        # Final check: ensure tensor is in (channel, time) format for Pyannote
+        sys.stderr.write(f"DEBUG: Final tensor shape: {audio_tensor.shape}\n")
+        sys.stderr.flush()
 
         audio_input = {
             'waveform': audio_tensor,
@@ -167,12 +185,14 @@ class PyannoteDiarizer:
             return []
 
         audio_tensor = torch.from_numpy(audio_data).float()
-        if audio_tensor.ndim == 1:
-            audio_tensor = audio_tensor.unsqueeze(0)
 
         if sample_rate != 16000:
             resampler = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=16000)
             audio_tensor = resampler(audio_tensor)
+
+        # Ensure tensor is in (channel, time) format for Pyannote
+        if audio_tensor.ndim == 1:
+            audio_tensor = audio_tensor.unsqueeze(0)
 
         try:
             # Create audio file dict for the pipeline
@@ -209,12 +229,14 @@ class PyannoteDiarizer:
             return []
 
         audio_tensor = torch.from_numpy(audio_data).float()
-        if audio_tensor.ndim == 1:
-            audio_tensor = audio_tensor.unsqueeze(0)
 
         if sample_rate != 16000:
             resampler = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=16000)
             audio_tensor = resampler(audio_tensor)
+
+        # Ensure tensor is in (channel, time) format for Pyannote
+        if audio_tensor.ndim == 1:
+            audio_tensor = audio_tensor.unsqueeze(0)
 
         try:
             # Create audio file dict for the pipeline
