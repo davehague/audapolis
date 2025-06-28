@@ -35,6 +35,11 @@ class Tasks:
             self.tasks.pop(uuid)
         except KeyError:
             raise TaskNotFoundError()
+    
+    def update(self, task: Task):
+        """Update an existing task in the task list"""
+        self.tasks[task.uuid] = task
+        return task
 
 
 class TaskNotFoundError(Exception):

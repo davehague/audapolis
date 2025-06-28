@@ -44,12 +44,12 @@ export function startTranscription(
   file: File,
   fileName: string
 ): Promise<TranscriptionTask> {
-  const opts: Record<string, string | boolean | number> = { transcription_model, diarize };
+  const formData: Record<string, any> = { file, fileName, transcription_model, diarize };
   if (diarize_max_speakers !== null) {
-    opts['diarize_max_speakers'] = diarize_max_speakers;
+    formData['diarize_max_speakers'] = diarize_max_speakers;
   }
-  return fetchFromServer(server, 'POST', 'tasks/start_transcription', opts, {
-    form: { file, fileName },
+  return fetchFromServer(server, 'POST', 'tasks/start_transcription', {}, {
+    form: formData,
   })
     .then((x) => x.json())
     .catch((e) => console.error(e));

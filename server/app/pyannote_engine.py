@@ -45,7 +45,7 @@ class PyannoteDiarizer:
                 "pyannote/speaker-diarization-3.1",
                 use_auth_token=self.auth_token
             )
-            self.pipeline.to("cpu") # Default to CPU, GPU will be handled in Phase 3
+            self.pipeline.to(torch.device("cpu")) # Default to CPU, GPU will be handled in Phase 3
         except Exception as e:
             sys.stderr.write(f"Error loading Pyannote pipeline: {e}. Please ensure you have a valid HuggingFace token and network access.\n")
             sys.stderr.flush()
@@ -75,7 +75,7 @@ class PyannoteDiarizer:
             }
             self.overlap_pipeline.instantiate(overlap_params)
             
-            self.segmentation_model.to("cpu")
+            self.segmentation_model.to(torch.device("cpu"))
         except Exception as e:
             sys.stderr.write(f"Error loading additional Pyannote models: {e}\n")
             sys.stderr.flush()

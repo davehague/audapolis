@@ -26,6 +26,7 @@ class TranscriptionState(str, enum.Enum):
     DIARIZING = "diarizing"
     TRANSCRIBING = "transcribing"
     DONE = "done"
+    FAILED = "failed"
 
 
 @dataclass
