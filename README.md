@@ -46,6 +46,15 @@ If you find any bugs or UX inconveniences, we would be happy for you to [report 
    pyenv install 3.10.18  # or use your Python manager
    pyenv local 3.10.18
    
+   # Ensure pyenv is properly initialized (add to ~/.zshrc or ~/.bash_profile)
+   eval "$(pyenv init -)"
+   
+   # IMPORTANT: Restart your terminal completely after setting up pyenv
+   # The Python version must be correct before installing dependencies
+   
+   # Verify correct Python version
+   python --version  # Should show 3.10.18
+   
    # Install Poetry
    pip install poetry
    ```
@@ -56,9 +65,10 @@ If you find any bugs or UX inconveniences, we would be happy for you to [report 
    cd app
    npm install
    
-   # Backend dependencies
+   # Backend dependencies (ensure Python 3.10.18 is active first)
    cd ../server
-   poetry install
+   python --version  # Verify this shows 3.10.18
+   poetry install    # If this fails with Python version error, restart terminal
    ```
 
 5. **Build and run**
@@ -152,6 +162,24 @@ poetry add package-name
 
 - **Video export** is disabled on Apple Silicon (M1/M2/M3) due to build issues with OpenTimelineIO
 - **Python 3.8-3.10 required** (3.11+ not supported due to dependency constraints)
+
+## 🔧 Troubleshooting
+
+### App hangs on "Starting app..." screen
+
+This usually indicates the Python server failed to start. Common causes:
+
+1. **Wrong Python version**: Ensure `python --version` shows 3.10.18 in the server directory
+2. **Missing dependencies**: Run `poetry install` in the server directory
+3. **pyenv not initialized**: Restart your terminal after setting up pyenv
+
+To debug:
+```bash
+cd server
+python --version          # Should show 3.10.18
+poetry install           # Install dependencies
+cd ../app && npm start    # Try starting again
+```
 
 ## 📦 Building Releases
 
